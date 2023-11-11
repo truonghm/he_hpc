@@ -1,0 +1,5 @@
+name: advancedhpc2023
+channels:
+  - conda-forge
+dependencies:
+  - pip 
