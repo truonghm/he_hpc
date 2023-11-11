@@ -65,3 +65,27 @@ def equalize_hist(src, cdf, dst):
         dst[x, y, 0] = src[x, y, 0]
         dst[x, y, 1] = src[x, y, 1]
         dst[x, y, 2] = min(255, max(0, new_value))
+
+@cuda.jit
+def compute_adjusted_hist(src, hist, lambda_val):
+    local_hist = cuda.shared.array(256, dtype=np.uint32)
+
+    x, y = cuda.grid(2)
+    tx = cuda.threadIdx.x
+
+    if tx < 256:
+        local_hist[tx] = 0
+    cuda.syncthreads()
+
+    if x < src.shape[0] and y < src.shape[1]:
+        value = src[x, y, 2] 
+        cuda.atomic.add(local_hist, value, 1)
+    cuda.syncthreads()
+
+    if tx < 256:
+        original_hist_val = local_hist[tx] / float(src.shape[0] * src.shape[1])
+        uniform_hist_val = 1.0 / 256.0
+        weight_original = 1.0 / (1 + lambda_val)
+        weight_uniform = lambda_val / (1 + lambda_val)
+        adjusted_hist_val = weight_original * original_hist_val + weight_uniform * uniform_hist_val
+        cuda.atomic.add(hist, tx, int(adjusted_hist_val * (src.shape[0] * src.shape[1])))
