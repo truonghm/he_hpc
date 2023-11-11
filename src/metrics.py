@@ -4,6 +4,8 @@ def ame(image1, image2):
 	if image1.shape != image2.shape:
 		raise ValueError('Image shapes do not match.')
 	
+	image1 = image1.astype(np.float32)
+	image2 = image2.astype(np.float32)
 	diff = np.abs(image1 - image2)
 	ame = np.sum(diff) / image1.size
 
