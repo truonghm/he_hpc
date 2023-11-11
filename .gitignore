@@ -1,3 +1,7 @@
+test_*.png
+test_*.jpg
+**/*/.comments/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
