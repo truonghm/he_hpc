@@ -12,6 +12,18 @@ from src import he_kernels as kernels
 import argparse
 
 
+def compute_thresholds(src):
+    L = 256
+    h = np.histogram(src, bins=256)[0]
+    exposure = np.sum(h * np.arange(256)) / np.sum(h) / L
+    print(exposure)
+    Xa = int(L * (1 - exposure))
+    Tc = int(np.sum(h) / L)
+    print(Xa, Tc)
+    print(np.mean(h))
+    print(np.max(h))
+    return Xa, Tc
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, default="images/input1.png")
@@ -27,18 +39,6 @@ if __name__ == "__main__":
 
     h, w, c = image.shape
 
-    # W = np.random.rand(256) 
-    W = np.ones(256, dtype=np.float32)
-
-    for i in range(128):
-        W[i] = 2
-    for i in range(128, 256):
-        W[i] = 0.5
-
-    u = np.full(256, 1.0 / 256) 
-    lambda_ = 0.8
-
-
     image_gpu = cuda.to_device(image)
     hsv_gpu = cuda.device_array_like(image_gpu)
     he_gpu = cuda.device_array_like(image_gpu)
@@ -49,31 +49,35 @@ if __name__ == "__main__":
     grid_size = (grid_size_x, grid_size_y)
 
     rgb_to_hsv[grid_size, block_size](image_gpu, hsv_gpu)
+    hist_low = np.zeros((256,), dtype=np.uint32)
+    hist_high = np.zeros((256,), dtype=np.uint32)
+    hist_low_gpu = cuda.to_device(hist_low)
+    hist_high_gpu = cuda.to_device(hist_high)
+
+    hsv_output = hsv_gpu.copy_to_host()
+    Xa, Tc = compute_thresholds(hsv_output)
+
+    kernels.compute_esi_hist[grid_size, block_size](hsv_gpu, hist_low_gpu, hist_high_gpu, Xa, Tc)
 
 
-    # hist = np.zeros((256,), dtype=np.uint32)
-    # hist_gpu = cuda.to_device(hist)
-    # kernels.compute_weighted_hist[grid_size, block_size](hsv_gpu, hist_gpu, weights_gpu)
-
-    hist_gpu = cuda.device_array(256, dtype=np.float32)
-    W_gpu = cuda.to_device(W)
-    u_gpu = cuda.to_device(u)
-    kernels.compute_weighted_hist[grid_size, block_size](hsv_gpu, hist_gpu, W_gpu, lambda_, u_gpu)
-
-
-    hist = hist_gpu.copy_to_host()
-    hist_sum = hist.sum()
-    cdf_gpu = cuda.device_array_like(hist_gpu)
+    hist_low = hist_low_gpu.copy_to_host()
+    hist_high = hist_high_gpu.copy_to_host()
+    hist_sum_low = hist_low.sum()
+    hist_sum_high = hist_high.sum()
+    cdf_low_gpu = cuda.device_array_like(hist_low_gpu)
+    cdf_high_gpu = cuda.device_array_like(hist_high_gpu)
 
     cdf_block_size = 256
-    cdf_grid_size = grid_size_x * grid_size_y
-    kernels.compute_cdf[cdf_grid_size, cdf_block_size](hist_gpu, cdf_gpu, hist_sum)
-    kernels.equalize_hist[grid_size, block_size](hsv_gpu, cdf_gpu, he_gpu)
+    cdf_grid_size = 1
+    kernels.compute_esi_cdf[cdf_grid_size, cdf_block_size](hist_low_gpu, hist_high_gpu, cdf_low_gpu, cdf_high_gpu, hist_sum_low, hist_sum_high)
+
+    kernels.equalize_esi_hist[grid_size, block_size](hsv_gpu, cdf_low_gpu, cdf_high_gpu, Xa, he_gpu)
+
     
     hsv_to_rgb[grid_size, block_size](he_gpu, final_output_gpu)
     final_output = final_output_gpu.copy_to_host()
 
-    imsave(OutputPath.WHE, final_output, )
+    imsave(OutputPath.EIHE, final_output, )
 
     print("AME: ", ame(image, final_output))
     print("Entropy: ", entropy(final_output))

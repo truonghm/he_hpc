@@ -1,0 +1,39 @@
+project:
+  render:
+    - "report.qmd"
+
+title: "Advanced High Performance Computing - Final Project Report"
+subtitle: "Histogram Equalization Implementation on GPU"
+author: Hoang Manh Truong
+date: today
+format: 
+  pdf:
+    include-before-body: 
+      text: |
+        \pagenumbering{roman}
+    documentclass: article
+    classoption: a4paper
+    papersize: A4
+    number-sections: true
+    toc: false
+    fontsize: 10pt
+    mainfont: Latin Modern Roman
+    sansfont: Latin Modern Roman
+    geometry:
+      - top=25mm
+      - left=35mm
+      - right=20mm
+      - bottom=24mm
+    keep-tex: false
+highlight-style: github
+code-block-bg: "#aadce3"
+code-block-border-left: "#31BAE9"
+execute:
+  echo: false
+  warning: false
+  eval: true
+link-citations: true
+linkcolor: black  
+number-depth: 2
+fig-height: 3.8
+fig-width: 6.3
