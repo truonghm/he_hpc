@@ -45,7 +45,7 @@ if __name__ == "__main__":
     cdf_gpu = cuda.device_array_like(hist_gpu)
 
     cdf_block_size = 256
-    cdf_grid_size = grid_size_x * grid_size_y
+    cdf_grid_size = 1
     kernels.compute_cdf[cdf_grid_size, cdf_block_size](hist_gpu, cdf_gpu, hist_sum)
     kernels.equalize_hist[grid_size, block_size](hsv_gpu, cdf_gpu, he_gpu)
     
